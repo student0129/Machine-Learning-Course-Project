@@ -86,7 +86,7 @@ modelRP
 
 #plot the decsion tree
 library(rattle)
-fancyRpartPlot(modelRP$finalModel)
+fancyRpartPlot(modelRP$finalModel, sub = "")
 
 #examine the performance of the decision tree
 confusionMatrix(trainingSet$classe, predict(modelRP$finalModel, trainingSet, type = "class"))
