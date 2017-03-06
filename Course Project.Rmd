@@ -1,0 +1,118 @@
+---
+title: "Course Project"
+author: "student0129 (TJ)"
+date: "March 3, 2017"
+output:
+  html_document: default
+  pdf_document: default
+  word_document: default
+---
+
+#Background
+
+Using devices such as Jawbone Up, Nike FuelBand, and Fitbit it is now possible to collect a large amount of data about personal activity relatively inexpensively. These type of devices are part of the quantified self movement - a group of enthusiasts who take measurements about themselves regularly to improve their health, to find patterns in their behavior, or because they are tech geeks. One thing that people regularly do is quantify how much of a particular activity they do, but they rarely quantify how well they do it. 
+
+In this project, my goal will be to use data from accelerometers on the belt, forearm, arm, and dumbell of 6 participants. They were asked to perform barbell lifts correctly and incorrectly in 5 different ways. More information is available from the website [here](http://groupware.les.inf.puc-rio.br/har) (see the section on the Weight Lifting Exercise Dataset). 
+
+#Data 
+
+The training data for this project are available [here](https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv). The test data are available [here](https://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv).
+
+The data for this project come from this [source](http://groupware.les.inf.puc-rio.br/har).
+
+##Data Processing 
+
+In this section we load the data, clean the data, and create training and testing tests that can be used for the analysis. 
+
+```{r data}
+#load data
+setwd("~/MOOC - Data Science/Part 8")
+training = read.csv("pml-training.csv", na.strings = c("NA", ""))
+testing = read.csv("pml-testing.csv", na.strings = c("NA", ""))
+
+#check if all attributes are the same
+all.equal(names(training), names(testing))
+
+#identify differences in attribute names
+setdiff(names(training), names(testing))
+setdiff(names(testing), names(training))
+
+#grab all attribute names
+naColNames <- c()
+
+#remove attrbiutes that have NULL values
+for (i in names(training)) {
+        if (sum(is.na(training[[i]])) != 0) {
+                naColNames <- c(naColNames, i)
+        }
+}
+
+#create clean training and resting sets
+trainingClean <- training[,!(names(training) %in% naColNames)]
+testingClean <- testing[,!(names(training) %in% naColNames)]
+
+set.seed(3217)
+trainingSet <- data.frame(trainingClean[,8:60])
+testingSet <- data.frame(testingClean[,8:59])
+```
+
+#Data Exploration
+
+In this section, I will look at the cleaned training set and examine number of *Classe* attributes as well as looking at the correlation between attrbiutes. 
+
+```{r explore}
+#plot a bar chart to examine how many instances of each classe we have
+plot(trainingSet$classe, main = "", xlab = "Classe")
+
+#corrleation plot for all attrbiutes
+library(corrplot)
+corrplot(cor(trainingSet[,1:52], use = "pairwise"))
+```
+
+#Machine Learning
+
+In this section, we create two machine learning models. In creating these models we perform cross validation for k-fold (K=10). 
+
+We will comapre these models and pick the best. Using the best model we will predict the *Classe* for the records in the testing set.
+
+```{r modeling}
+#first we will create a decision tree model. in order to find the best decision tree we use 10-fold crross-validation.
+library(caret)
+modelRP <- train(classe ~ ., data = trainingSet, method = "rpart",
+                 trControl = trainControl(method = "cv", number = 10))
+
+#show the output of the model 
+modelRP
+
+#plot the decsion tree
+library(rattle)
+fancyRpartPlot(modelRP$finalModel)
+
+#examine the performance of the decision tree
+confusionMatrix(trainingSet$classe, predict(modelRP$finalModel, trainingSet, type = "class"))
+
+#create a random forest modee. as before, we use 10-fold cross validation to find the best random forect model. 
+modelRF <- train(classe ~ ., data = trainingSet, method = "rf",
+                 trControl = trainControl(method = "cv", number = 10))
+
+#show the final model 
+modelRF
+
+#examine the performance of the random forest.
+confusionMatrix(trainingSet$classe, predict(modelRF$finalModel, trainingSet, type = "class"))
+```
+
+As you can see from the resutls above, the random forest does a much better job of predciting the outcomes. Therfore, we will use the random forect model in our next section to predict the *Classe* for records in the testing set. 
+
+#Prediction
+
+As mentiones above, we will use the random forest model to predict the outcomes.
+
+```{r prediction}
+#predict classe for records in the testing set
+predict(modelRF$finalModel, newdata = testingSet)
+```
+
+#Conclusion
+
+In this project, I built to machine learning models. In doing so, I used cross-validation to find the best model in each case. I then, comapred the performance of these two models and picked the best (i.e., the random forest model). Finally, I used the random forest model to predict the *Classe* attribute of the testing set. 
